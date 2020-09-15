@@ -8,6 +8,8 @@ import syft
 from syft.generic.frameworks.hook import hook_args
 from syft.generic.frameworks.overload import overloaded
 from syft.frameworks.torch.tensors.interpreters.paillier import PaillierTensor
+from syft.frameworks.torch.tensors.interpreters.ckks import CKKSTensor
+from syft.frameworks.tenseal import DEFAULT_CKKS_SCALE
 from syft.messaging.message import TensorCommandMessage
 from syft.generic.frameworks.types import FrameworkTensor
 from syft.generic.abstract.tensor import AbstractTensor
@@ -15,6 +17,7 @@ from syft.generic.abstract.hookable import hookable
 from syft.generic.pointers.pointer_tensor import PointerTensor
 from syft.generic.utils import memorize
 from syft.workers.base import BaseWorker
+
 
 from syft.exceptions import PureFrameworkTensorFoundError
 from syft.exceptions import InvalidTensorForRemoteGet
@@ -1065,9 +1068,21 @@ class TorchTensor(AbstractTensor):
 
             return x_encrypted
 
+        elif protocol.lower() == "ckks":
+            context = kwargs.get("public_key")
+            scale = kwargs.get("scale", DEFAULT_CKKS_SCALE)
+
+            x = self.copy()
+            x_encrypted = CKKSTensor().on(x)
+            x_encrypted.child.encrypt_(context, scale)
+
+            return x_encrypted
+
         else:
             raise NotImplementedError(
                 "Currently the .encrypt() method only supports Paillier Homomorphic "
+                "Encryption, CKKS Homomorphic Encryption and Secure Multi-Party "
+                "Computation"
                 f"Encryption and Secure Multi-Party Computation, but {protocol} was given"
             )
 
@@ -1111,10 +1126,16 @@ class TorchTensor(AbstractTensor):
             private_key = kwargs.get("private_key")
             return self.child.decrypt(private_key)
 
+        elif protocol.lower() == "ckks":
+            # self.copy() not required as CKKS's decrypt method is not inplace
+            secret_key = kwargs.get("secret_key")
+            return self.child.decrypt(secret_key)
+
         else:
             raise NotImplementedError(
                 "Currently the .decrypt() method only supports Paillier Homomorphic "
-                "Encryption and Secure Multi-Party Computation"
+                "Encryption, CKKS Homomorphic Encryption and Secure Multi-Party "
+                "Computation"
             )
 
     def numpy_tensor(self):

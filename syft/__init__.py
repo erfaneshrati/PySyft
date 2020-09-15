@@ -129,6 +129,7 @@ __all__.extend(
         "FixedPrecisionTensor",
         "PointerTensor",
         "MultiPointerTensor",
+        "CKKSTensor",
         "PrivateGridNetwork",
         "PublicGridNetwork",
         "create_sandbox",
